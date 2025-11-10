@@ -9,7 +9,7 @@ const messagesContainerStyle = { flex: 1, overflowY: 'auto', padding: '10px', ba
 const messageStyle = { marginBottom: '10px', padding: '8px 12px', borderRadius: '8px', maxWidth: '70%', background: 'var(--message-bg)', wordWrap: 'break-word' };
 const messageMeStyle = { ...messageStyle, background: 'var(--message-me-bg)', alignSelf: 'flex-end' };
 const messageSenderStyle = { fontSize: '0.8em', fontWeight: 'bold', marginBottom: '4px' };
-const systemMessageStyle = { ...messageStyle, alignSelf: 'center', background: 'none', color: 'var(--system-message-color)', fontStyle: 'poppins' };
+const systemMessageStyle = { ...messageStyle, alignSelf: 'center', background: 'none', color: 'var(--system-message-color)', fontStyle: 'italic' };
 const messagesListStyle = { display: 'flex', flexDirection: 'column', gap: '5px' }
 // --- End Styles ---
 
@@ -106,32 +106,33 @@ function ChatWindow({ currentChat }) {
     return <div style={{...messagesContainerStyle, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>Select a chat to start messaging</div>;
   }
 
-  return (
-    <>
-      <div style={chatWindowHeaderStyle}>
-        <h3>Chat with: {currentChat.name} ({currentChat.type})</h3>
-      </div>
-      
-      <div style={messagesContainerStyle}>
-        <div style={messagesListStyle}>
-          {messages.map((msg, index) => {
-            if (msg.type === 'system') {
-              return <div key={index} style={systemMessageStyle}>{msg.content}</div>;
-            }
-            const isMe = msg.sender === username;
-            return (
-              <div key={index} style={isMe ? messageMeStyle : messageStyle}>
-                {!isMe && <div style={messageSenderStyle}>{msg.sender}</div>}
-                {msg.content}
-              </div>
-            );
-          })}
-        </div>
-        <div ref={messagesEndRef} />
-      </div>
-      
-      <ChatInput currentChat={currentChat} />
-    </>
-  );
+  return (
+    <>
+      <div style={chatWindowHeaderStyle}>
+        <h3>Chat with: {currentChat.name} ({currentChat.type})</h3>
+      </div>
+      
+      <div style={messagesContainerStyle}>
+        <div style={messagesListStyle}>
+          {messages.map((msg, index) => {
+            if (msg.type === 'system') {
+              return <div key={index} style={systemMessageStyle}>{msg.content}</div>;
+            }
+            const isMe = msg.sender === username;
+            return (
+              <div key={index} style={isMe ? messageMeStyle : messageStyle}>
+                {!isMe && <div style={messageSenderStyle}>{msg.sender}</div>}
+                {msg.content}
+              </div>
+            );
+          })}
+        </div>
+        <div ref={messagesEndRef} />
+      </div>
+      
+      <ChatInput currentChat={currentChat} />
+    </>
+  );
 }
+
 export default ChatWindow;
