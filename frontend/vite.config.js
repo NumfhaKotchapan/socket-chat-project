@@ -10,7 +10,7 @@ export default defineConfig({
     proxy: {
       "/api": {
         // backend dev server
-        target: import.meta.env.VITE_SERVER_URL,
+        target: "http://172.20.10.2:3001",
         changeOrigin: true
       }
     }
