@@ -33,6 +33,9 @@ function Sidebar({ onSelectChat }) {
       setGroups(groupList);
     });
 
+    // 🔽 2. เพิ่มส่วนนี้: ร้องขอ list "ปัจจุบัน" ทันที 🔽
+    socket.emit("get_initial_lists");
+
     // Cleanup
     return () => {
       socket.off("user_list");

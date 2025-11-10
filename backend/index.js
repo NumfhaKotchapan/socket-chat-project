@@ -58,6 +58,16 @@ io.on("connection", (socket) => {
     io.emit("user_list", Object.values(users));
   });
 
+  // 🔽 เพิ่ม Event Listener นี้เข้าไป 🔽
+  // เมื่อ client ร้องขอ list ตอนโหลดหน้า
+  socket.on("get_initial_lists", () => {
+    console.log(`✨ ${users[socket.id]} requested initial lists`);
+    // ส่ง list ทั้งสองกลับไปหา "แค่คนนั้น"
+    socket.emit("user_list", Object.values(users));
+    socket.emit("group_list", rooms);
+  });
+  // 🔼 สิ้นสุดส่วนที่เพิ่ม 🔼
+
   // รับข้อความ private
   socket.on("private_message", async ({ to, message }) => {
     const targetSocketId = Object.keys(users).find(
@@ -87,7 +97,8 @@ io.on("connection", (socket) => {
   socket.on("group_message", async ({ room, message }) => {
     io.to(room).emit("group_message", {
       from: users[socket.id],
-      message
+      message,
+      room: room // 👈 🔽 เพิ่มบรรทัดนี้ 🔽
     });
 
     // ✅ บันทึกข้อความลง MongoDB
