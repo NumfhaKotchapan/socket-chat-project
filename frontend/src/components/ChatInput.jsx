@@ -49,7 +49,6 @@ const sendButtonStyle = {
   flexShrink: 0, // 💅 ป้องกันปุ่มหดตัว
   fontSize: '18px',
   transition: 'transform 0.1s',
-  marginHeight: '100px',
 };
 // --- End Styles ---
 
