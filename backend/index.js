@@ -78,7 +78,13 @@ io.on("connection", (socket) => {
         from: users[socket.id],
         message
       });
-
+      console.log(`✉️ Private message from ${users[socket.id]} to ${to}: ${message}`);
+      // ส่งกลับไปยังผู้ส่งด้วย (เพื่อแสดงใน chat window ของเขาเอง)
+      socket.emit("private_message", {
+        from: users[socket.id],
+        message
+      });
+      
       // ✅ บันทึกข้อความลง MongoDB
       try {
         await Message.create({
