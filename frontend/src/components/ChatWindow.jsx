@@ -1,138 +1,228 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSocket } from '../context/SocketContext';
-import { useAppContext } from '../App';
+import { useAppContext } from '../App'; // 🛑 (1) นำเข้า useAppContext
 import ChatInput from './ChatInput';
 
-// --- Styles (เหมือนเดิม) ---
-const chatWindowHeaderStyle = { padding: '10px', borderBottom: '1px solid var(--border-color)', background: 'var(--sidebar-bg)' };
-const messagesContainerStyle = { flex: 1, overflowY: 'auto', padding: '10px', background: 'var(--chat-bg)' };
-const messageStyle = { marginBottom: '10px', padding: '8px 12px', borderRadius: '8px', maxWidth: '70%', background: 'var(--message-bg)', wordWrap: 'break-word' };
-const messageMeStyle = { ...messageStyle, background: 'var(--message-me-bg)', alignSelf: 'flex-end' };
-const messageSenderStyle = { fontSize: '0.8em', fontWeight: 'bold', marginBottom: '4px' };
-const systemMessageStyle = { ...messageStyle, alignSelf: 'center', background: 'none', color: 'var(--system-message-color)', fontStyle: 'italic' };
-const messagesListStyle = { display: 'flex', flexDirection: 'column', gap: '5px' }
+// --- Styles (ถูกปรับให้ใช้ CSS Variables อย่างเต็มที่) ---
+
+const GLOBAL_FONT = 'Poppins, sans-serif';
+
+const chatWindowHeaderStyle = {
+  padding: '15px 20px',
+  borderBottom: '1px solid var(--border-color)', // 🛑 (3)
+  background: 'var(--sidebar-bg)', // 🛑 (3)
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  fontFamily: GLOBAL_FONT,
+  color: 'var(--text-color)', // 🛑 (3)
+};
+
+const messagesContainerStyle = {
+  flex: 1,
+  overflowY: 'auto',
+  padding: '20px',
+  background: 'var(--chat-bg)', // 🛑 (3)
+};
+
+const messagesListStyle = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '15px',
+};
+
+const messageStyle = {
+  marginBottom: '0px',
+  padding: '10px 15px',
+  borderRadius: '18px 18px 18px 0',
+  maxWidth: '65%',
+  background: 'var(--message-bg)', // 🛑 (3)
+  wordWrap: 'break-word',
+  alignSelf: 'flex-start',
+  color: 'var(--text-color)', // 🛑 (3)
+  fontFamily: GLOBAL_FONT,
+  fontSize: '15px',
+};
+
+const messageMeStyle = {
+  ...messageStyle,
+  background: 'var(--message-me-bg)', // 🛑 (3)
+  alignSelf: 'flex-end',
+  borderRadius: '18px 18px 0 18px',
+  color: 'var(--message-me-text-color, #FFFFFF)',
+};
+
+const messageSenderStyle = {
+  fontSize: '0.75em',
+  fontWeight: '600',
+  marginBottom: '4px',
+  color: 'var(--system-message-color)', // 🛑 (3)
+};
+
+const systemMessageStyle = {
+  alignSelf: 'center',
+  background: 'var(--system-message-bg, rgba(76, 110, 245, 0.1))',
+  color: 'var(--system-message-color, #4C6EF5)',
+  padding: '6px 15px',
+  borderRadius: '18px',
+  fontStyle: 'normal',
+  fontSize: '0.85em',
+  fontWeight: '500',
+  marginTop: '5px',
+  marginBottom: '10px',
+};
+
 // --- End Styles ---
 
 function ChatWindow({ currentChat }) {
-	const socket = useSocket();
-	const { username } = useAppContext();
-	// Base server URL used for fetching message history. Can be overridden by Vite env var VITE_SERVER_URL
-	const SERVER_URL = import.meta.env.VITE_SERVER_URL || `http://${window.location.hostname}:3001`;
-	const [messages, setMessages] = useState([]);
-  const messagesEndRef = useRef(null);
+  const socket = useSocket();
+  const { username, currentChat: contextChat, theme, toggleTheme } = useAppContext(); // 🛑 (1)
 
-  // 🔽 FIX 1: แยก "ข้อความต้อนรับ" ออกมา
-  // Effect นี้จะทำงานแค่ "ครั้งเดียว" ตอน component โหลด
-  useEffect(() => {
-    const handleServerMessage = (message) => {
-      setMessages(prev => [...prev, { type: 'system', content: message }]);
-    };
-    socket.on("server_message", handleServerMessage);
+  const SERVER_URL =
+    import.meta.env.VITE_SERVER_URL || `http://${window.location.hostname}:3001`;
 
-    return () => {
-      socket.off("server_message", handleServerMessage);
-    };
-  }, [socket]); // 👈 ใช้ Dependency ว่าง (หรือแค่ socket)
+  const [messages, setMessages] = useState([]);
+  const messagesEndRef = useRef(null);
 
-  // 🔼 สิ้นสุด FIX 1
+  // 🔽 FIX 1: แยก "ข้อความต้อนรับ" ออกมา
+  useEffect(() => {
+    const handleServerMessage = (message) => {
+      setMessages((prev) => [...prev, { type: 'system', content: message }]);
+    };
 
-  // 🌟 Feature 4: DB (ดึงประวัติแชท)
-  // Effect นี้จะทำงาน "ทุกครั้งที่เปลี่ยนแชท" (currentChat เปลี่ยน)
-  useEffect(() => {
-    // 1. (ย้าย "รับข้อความต้อนรับ" ออกไปแล้ว)
+    socket.on('server_message', handleServerMessage);
+    return () => {
+      socket.off('server_message', handleServerMessage);
+    };
+  }, [socket]);
 
-    // 2. ดึงประวัติแชทเมื่อเปลี่ยนห้อง
-    setMessages([]); // เคลียร์ข้อความเก่าก่อน (ถูกต้อง)
-    if (currentChat) {
-			let apiUrl = "";
-			if (currentChat.type === 'private') {
-				apiUrl = `${SERVER_URL}/api/messages/private/${username}/${currentChat.name}`;
-			} else {
-				apiUrl = `${SERVER_URL}/api/messages/group/${currentChat.name}`;
-			}
+  // 🌟 Feature 4: DB (ดึงประวัติแชท)
+  useEffect(() => {
+    setMessages([]);
 
-      // 🌟 Feature 4: Fetching from DB
-      fetch(apiUrl)
-        .then(res => res.json())
-        .then(history => {
-          const formattedHistory = history.map(msg => ({
-            ...msg,
-            type: 'chat'
-          }));
+    if (currentChat) {
+      let apiUrl = '';
 
-          // 🔽 FIX 2: เปลี่ยนจาก "เขียนทับ" เป็น "รวมร่าง"
-          // (เผื่อมีข้อความสด หรือ greeting เข้ามาระหว่างโหลด)
-          setMessages(prevMessages => [...formattedHistory, ...prevMessages]);
-          // 🔼 สิ้นสุด FIX 2
+      if (currentChat.type === 'private') {
+        apiUrl = `${SERVER_URL}/api/messages/private/${username}/${currentChat.name}`;
+      } else {
+        apiUrl = `${SERVER_URL}/api/messages/group/${currentChat.name}`;
+      }
 
-        })
-        .catch(err => console.error("Failed to fetch history:", err));
-    }
+      fetch(apiUrl)
+        .then((res) => res.json())
+        .then((history) => {
+          const formattedHistory = history.map((msg) => ({
+            ...msg,
+            type: 'chat',
+          }));
+          setMessages((prevMessages) => [...formattedHistory, ...prevMessages]);
+        })
+        .catch((err) => console.error('Failed to fetch history:', err));
+    }
+  }, [currentChat, username]);
 
-    // (ลบ cleanup ของ server_message ออกจากตรงนี้)
-  }, [currentChat, username]); // 👈 ลบ socket ออกจาก dependencies ก็ได้ เพราะมันไม่เกี่ยวกับการดึง history
+  // Effect สำหรับรับ "ข้อความสด"
+  useEffect(() => {
+    const handlePrivateMessage = ({ from, message }) => {
+      if (
+        currentChat &&
+        currentChat.type === 'private' &&
+        (from === currentChat.name || from === username)
+      ) {
+        setMessages((prev) => [...prev, { type: 'chat', sender: from, content: message }]);
+      }
+    };
 
+    const handleGroupMessage = ({ from, message }) => {
+      if (currentChat && currentChat.type === 'group') {
+        setMessages((prev) => [...prev, { type: 'chat', sender: from, content: message }]);
+      }
+    };
 
-  // Effect สำหรับรับ "ข้อความสด" (อันนี้ถูกต้องอยู่แล้ว)
-  useEffect(() => {
-    const handlePrivateMessage = ({ from, message }) => {
-      if (currentChat && currentChat.type === 'private' && (from === currentChat.name || from === username)) {
-        setMessages(prev => [...prev, { type: 'chat', sender: from, content: message }]);
-      }
-    };
+    socket.on('private_message', handlePrivateMessage);
+    socket.on('group_message', handleGroupMessage);
 
-    const handleGroupMessage = ({ from, message }) => {
-      if (currentChat && currentChat.type === 'group') {
-        setMessages(prev => [...prev, { type: 'chat', sender: from, content: message }]);
-      }
-    };
+    return () => {
+      socket.off('private_message', handlePrivateMessage);
+      socket.off('group_message', handleGroupMessage);
+    };
+  }, [socket, currentChat, username]);
 
-    socket.on("private_message", handlePrivateMessage);
-    socket.on("group_message", handleGroupMessage);
+  // Auto-scroll
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-    return () => {
-      socket.off("private_message", handlePrivateMessage);
-      socket.off("group_message", handleGroupMessage);
-    };
-  }, [socket, currentChat, username]);
+  // --- ส่วน Render ---
+  if (!currentChat) {
+    return (
+      <div
+        style={{
+          ...messagesContainerStyle,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: GLOBAL_FONT,
+        }}
+      >
+        Select a chat to start messaging
+      </div>
+    );
+  }
 
-  // Auto-scroll (อันนี้ถูกต้องอยู่แล้ว)
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  return (
+    <>
+      <div style={chatWindowHeaderStyle}>
+        <h3>
+          # {currentChat.name}{' '}
+          ({currentChat.type === 'group' ? 'Group Message' : 'Direct Message'})
+        </h3>
 
-  // --- ส่วน Render (เหมือนเดิม ไม่ต้องแก้) ---
-  if (!currentChat) {
-    return <div style={{...messagesContainerStyle, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>Select a chat to start messaging</div>;
-  }
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', fontSize: '14px' }}>
+          <button
+            onClick={toggleTheme} // 🛑 (2)
+            style={{
+              padding: '8px 15px',
+              borderRadius: '20px',
+              border: '1px solid var(--border-color)',
+              background: 'var(--toggle-botton-bg)',
+              color: 'var(--accent-text)',
+              cursor: 'pointer',
+              fontFamily: GLOBAL_FONT,
+            }}
+          >
+            {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
+          </button>
+        </div>
+      </div>
 
-  return (
-    <>
-      <div style={chatWindowHeaderStyle}>
-        <h3>Chat with: {currentChat.name} ({currentChat.type})</h3>
-      </div>
-      
-      <div style={messagesContainerStyle}>
-        <div style={messagesListStyle}>
-          {messages.map((msg, index) => {
-            if (msg.type === 'system') {
-              return <div key={index} style={systemMessageStyle}>{msg.content}</div>;
-            }
-            const isMe = msg.sender === username;
-            return (
-              <div key={index} style={isMe ? messageMeStyle : messageStyle}>
-                {!isMe && <div style={messageSenderStyle}>{msg.sender}</div>}
-                {msg.content}
-              </div>
-            );
-          })}
-        </div>
-        <div ref={messagesEndRef} />
-      </div>
-      
-      <ChatInput currentChat={currentChat} />
-    </>
-  );
+      <div style={messagesContainerStyle}>
+        <div style={messagesListStyle}>
+          {messages.map((msg, index) => {
+            if (msg.type === 'system') {
+              return <div key={index} style={systemMessageStyle}>{msg.content}</div>;
+            }
+
+            const isMe = msg.sender === username;
+            return (
+              <div
+                key={index}
+                style={isMe ? messageMeStyle : messageStyle}
+                className={isMe ? 'message-me' : 'message-other'}
+              >
+                {!isMe && <div style={messageSenderStyle}>{msg.sender}</div>}
+                {msg.content}
+              </div>
+            );
+          })}
+        </div>
+        <div ref={messagesEndRef} />
+      </div>
+
+      <ChatInput currentChat={currentChat} />
+    </>
+  );
 }
 
 export default ChatWindow;

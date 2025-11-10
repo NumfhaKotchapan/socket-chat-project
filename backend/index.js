@@ -128,10 +128,17 @@ io.on("connection", (socket) => {
 
   // เข้าร่วม group
   socket.on("join_group", (groupName) => {
+    const username = users[socket.id];
+
+    for (const room of socket.rooms) {
+    if (room !== socket.id) {
+      socket.leave(room);
+      console.log(`🚪 ${username} left room ${room}`);
+    }
+  }
     socket.join(groupName);
     if (!rooms[groupName]) rooms[groupName] = [];
-    // 🔽 เพิ่มการตรวจสอบนี้ 🔽
-    const username = users[socket.id];
+    
     if (username && !rooms[groupName].includes(username)) {
       rooms[groupName].push(username);
       io.emit("group_list", rooms); // อัปเดต list ต่อเมื่อมีการเปลี่ยนแปลง

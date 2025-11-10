@@ -1,5 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 /* Global Styles */
 :root {
+  --global-font: 'Poppins, sans-serif';
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif,Poppins;
   line-height: 1.5;
   font-weight: 400;
@@ -12,8 +14,9 @@
   --sidebar-bg: #f9f9f9;
   --chat-bg: #f5f5f5;
   --message-bg: #ffffff;
-  --message-me-bg: #dcf8c6;
+  --message-me-bg: #4b8320;
   --system-message-color: #888;
+  --toggle-botton-bg: #283861;
 }
 
 /* 🌟 Feature 1: Dark Mode */
@@ -28,6 +31,7 @@
   --message-bg: #444444;
   --message-me-bg: #056162;
   --system-message-color: #aaa;
+  --toggle-botton-bg: #ffffff;
 }
 
 body {
