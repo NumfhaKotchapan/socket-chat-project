@@ -4,8 +4,11 @@ import { io } from 'socket.io-client';
 
 // ----------------------------------------------------------------------
 
-// 1. เชื่อมต่อกับ Backend (อย่าลืมแก้ URL ถ้าจำเป็น)
-const socket = io("http://localhost:3001"); 
+// 1. เชื่อมต่อกับ Backend
+// Prefer explicit environment variable; fallback to the current host + port 3001.
+// For cross-device testing, set VITE_SERVER_URL to e.g. http://192.168.1.10:3001
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || `http://${window.location.hostname}:3001`;
+const socket = io(SERVER_URL);
 
 // 2. สร้าง Context
 const SocketContext = createContext(socket);
