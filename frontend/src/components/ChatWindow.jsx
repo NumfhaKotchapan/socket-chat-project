@@ -14,88 +14,97 @@ const messagesListStyle = { display: 'flex', flexDirection: 'column', gap: '5px'
 // --- End Styles ---
 
 function ChatWindow({ currentChat }) {
-  const socket = useSocket();
-  const { username } = useAppContext();
-  const [messages, setMessages] = useState([]);
-  const messagesEndRef = useRef(null);
+	const socket = useSocket();
+	const { username } = useAppContext();
+	// Base server URL used for fetching message history. Can be overridden by Vite env var VITE_SERVER_URL
+	const SERVER_URL = import.meta.env.VITE_SERVER_URL || `http://${window.location.hostname}:3001`;
+	const [messages, setMessages] = useState([]);
+  const messagesEndRef = useRef(null);
 
-  // 🔽 FIX 1: แยก "ข้อความต้อนรับ" ออกมา (ถูกต้อง)
-  useEffect(() => {
-    const handleServerMessage = (message) => {
-      setMessages(prev => [...prev, { type: 'system', content: message }]);
-    };
-    socket.on("server_message", handleServerMessage);
-    return () => {
-      socket.off("server_message", handleServerMessage);
-    };
-  }, [socket]);
-  // 🔼 สิ้นสุด FIX 1
+  // 🔽 FIX 1: แยก "ข้อความต้อนรับ" ออกมา
+  // Effect นี้จะทำงานแค่ "ครั้งเดียว" ตอน component โหลด
+  useEffect(() => {
+    const handleServerMessage = (message) => {
+      setMessages(prev => [...prev, { type: 'system', content: message }]);
+    };
+    socket.on("server_message", handleServerMessage);
 
-  // 🌟 Feature 4: DB (ดึงประวัติแชท) (ถูกต้อง)
-  useEffect(() => {
-    setMessages([]); 
-    if (currentChat) {
-      let apiUrl = "";
-      if (currentChat.type === 'private') {
-        apiUrl = `http://localhost:3001/api/messages/private/${username}/${currentChat.name}`;
-      } else {
-        apiUrl = `http://localhost:3001/api/messages/group/${currentChat.name}`;
-      }
+    return () => {
+      socket.off("server_message", handleServerMessage);
+    };
+  }, [socket]); // 👈 ใช้ Dependency ว่าง (หรือแค่ socket)
 
-      fetch(apiUrl)
-        .then(res => res.json())
-        .then(history => {
-          const formattedHistory = history.map(msg => ({
-            ...msg,
-            type: 'chat'
-          }));
-          // 🔽 FIX 2: (ถูกต้อง)
-          setMessages(prevMessages => [...formattedHistory, ...prevMessages]);
-        })
-        .catch(err => console.error("Failed to fetch history:", err));
-    }
-  }, [currentChat, username]);
+  // 🔼 สิ้นสุด FIX 1
+
+  // 🌟 Feature 4: DB (ดึงประวัติแชท)
+  // Effect นี้จะทำงาน "ทุกครั้งที่เปลี่ยนแชท" (currentChat เปลี่ยน)
+  useEffect(() => {
+    // 1. (ย้าย "รับข้อความต้อนรับ" ออกไปแล้ว)
+
+    // 2. ดึงประวัติแชทเมื่อเปลี่ยนห้อง
+    setMessages([]); // เคลียร์ข้อความเก่าก่อน (ถูกต้อง)
+    if (currentChat) {
+			let apiUrl = "";
+			if (currentChat.type === 'private') {
+				apiUrl = `${SERVER_URL}/api/messages/private/${username}/${currentChat.name}`;
+			} else {
+				apiUrl = `${SERVER_URL}/api/messages/group/${currentChat.name}`;
+			}
+
+      // 🌟 Feature 4: Fetching from DB
+      fetch(apiUrl)
+        .then(res => res.json())
+        .then(history => {
+          const formattedHistory = history.map(msg => ({
+            ...msg,
+            type: 'chat'
+          }));
+
+          // 🔽 FIX 2: เปลี่ยนจาก "เขียนทับ" เป็น "รวมร่าง"
+          // (เผื่อมีข้อความสด หรือ greeting เข้ามาระหว่างโหลด)
+          setMessages(prevMessages => [...formattedHistory, ...prevMessages]);
+          // 🔼 สิ้นสุด FIX 2
+
+        })
+        .catch(err => console.error("Failed to fetch history:", err));
+    }
+
+    // (ลบ cleanup ของ server_message ออกจากตรงนี้)
+  }, [currentChat, username]); // 👈 ลบ socket ออกจาก dependencies ก็ได้ เพราะมันไม่เกี่ยวกับการดึง history
 
 
-  // Effect สำหรับรับ "ข้อความสด"
-  useEffect(() => {
-    const handlePrivateMessage = ({ from, message }) => {
-      if (currentChat && currentChat.type === 'private' && (from === currentChat.name || from === username)) {
-        setMessages(prev => [...prev, { type: 'chat', sender: from, content: message }]);
-      }
-    };
+  // Effect สำหรับรับ "ข้อความสด" (อันนี้ถูกต้องอยู่แล้ว)
+  useEffect(() => {
+    const handlePrivateMessage = ({ from, message }) => {
+      if (currentChat && currentChat.type === 'private' && (from === currentChat.name || from === username)) {
+        setMessages(prev => [...prev, { type: 'chat', sender: from, content: message }]);
+      }
+    };
 
-    // 🔽 FIX 3: แก้ไข Bug ข้อความกลุ่ม Broadcast
-    const handleGroupMessage = ({ from, message, room }) => { // 1. รับ 'room' จาก payload
-      // ตรวจสอบว่าข้อความนี้มาจากกลุ่มที่เราเปิดอยู่หรือไม่
-      if (
-        currentChat && 
-        currentChat.type === 'group' &&
-        currentChat.name === room // 2. เพิ่มการตรวจสอบนี้
-      ) {
-        setMessages(prev => [...prev, { type: 'chat', sender: from, content: message }]);
-      }
-    };
-    // 🔼 สิ้นสุด FIX 3
+    const handleGroupMessage = ({ from, message }) => {
+      if (currentChat && currentChat.type === 'group') {
+        setMessages(prev => [...prev, { type: 'chat', sender: from, content: message }]);
+      }
+    };
 
-    socket.on("private_message", handlePrivateMessage);
-    socket.on("group_message", handleGroupMessage); // socket จะเรียก handleGroupMessage ที่แก้ไขแล้ว
+    socket.on("private_message", handlePrivateMessage);
+    socket.on("group_message", handleGroupMessage);
 
-    return () => {
-      socket.off("private_message", handlePrivateMessage);
-      socket.off("group_message", handleGroupMessage);
-    };
-  }, [socket, currentChat, username]); // Dependencies ถูกต้องแล้ว
+    return () => {
+      socket.off("private_message", handlePrivateMessage);
+      socket.off("group_message", handleGroupMessage);
+    };
+  }, [socket, currentChat, username]);
 
-  // Auto-scroll (ถูกต้อง)
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  // Auto-scroll (อันนี้ถูกต้องอยู่แล้ว)
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-  // --- ส่วน Render (เหมือนเดิม) ---
-  if (!currentChat) {
-    return <div style={{...messagesContainerStyle, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>Select a chat to start messaging</div>;
-  }
+  // --- ส่วน Render (เหมือนเดิม ไม่ต้องแก้) ---
+  if (!currentChat) {
+    return <div style={{...messagesContainerStyle, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>Select a chat to start messaging</div>;
+  }
 
   return (
     <>

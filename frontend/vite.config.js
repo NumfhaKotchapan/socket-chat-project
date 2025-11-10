@@ -5,11 +5,14 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   server: {
+    // allow access from other devices on the LAN when running `npm run dev`
+    host: true,
     proxy: {
       "/api": {
-        target: "http://localhost:3000",
+        // backend dev server
+        target: "http://172.20.10.2:3001",
         changeOrigin: true
-      },
-    },
+      }
+    }
   },
 });
