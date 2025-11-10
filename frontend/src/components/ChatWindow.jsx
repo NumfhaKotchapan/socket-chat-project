@@ -14,15 +14,17 @@ const messagesListStyle = { display: 'flex', flexDirection: 'column', gap: '5px'
 // --- End Styles ---
 
 function ChatWindow({ currentChat }) {
-  const socket = useSocket();
-  const { username } = useAppContext();
-  const [messages, setMessages] = useState([]);
+	const socket = useSocket();
+	const { username } = useAppContext();
+	// Base server URL used for fetching message history. Can be overridden by Vite env var VITE_SERVER_URL
+	const SERVER_URL = import.meta.env.VITE_SERVER_URL || `http://${window.location.hostname}:3001`;
+	const [messages, setMessages] = useState([]);
   const messagesEndRef = useRef(null);
 
   // 🔽 FIX 1: แยก "ข้อความต้อนรับ" ออกมา
   // Effect นี้จะทำงานแค่ "ครั้งเดียว" ตอน component โหลด
   useEffect(() => {
-    const handleServerMessage = (message) => {
+    const handleServerMessage = (message) => {
       setMessages(prev => [...prev, { type: 'system', content: message }]);
     };
     socket.on("server_message", handleServerMessage);
@@ -42,12 +44,12 @@ function ChatWindow({ currentChat }) {
     // 2. ดึงประวัติแชทเมื่อเปลี่ยนห้อง
     setMessages([]); // เคลียร์ข้อความเก่าก่อน (ถูกต้อง)
     if (currentChat) {
-      let apiUrl = "";
-      if (currentChat.type === 'private') {
-        apiUrl = `http://localhost:3001/api/messages/private/${username}/${currentChat.name}`;
-      } else {
-        apiUrl = `http://localhost:3001/api/messages/group/${currentChat.name}`;
-      }
+			let apiUrl = "";
+			if (currentChat.type === 'private') {
+				apiUrl = `${SERVER_URL}/api/messages/private/${username}/${currentChat.name}`;
+			} else {
+				apiUrl = `${SERVER_URL}/api/messages/group/${currentChat.name}`;
+			}
 
       // 🌟 Feature 4: Fetching from DB
       fetch(apiUrl)
