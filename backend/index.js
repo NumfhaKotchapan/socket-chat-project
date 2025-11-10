@@ -84,7 +84,6 @@ io.on("connection", (socket) => {
         from: users[socket.id],
         message
       });
-
       // ✅ บันทึกข้อความลง MongoDB
       try {
         await Message.create({
