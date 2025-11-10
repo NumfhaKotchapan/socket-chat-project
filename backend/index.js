@@ -79,6 +79,12 @@ io.on("connection", (socket) => {
         message
       });
 
+      // 🔽🔽🔽 2. ส่งกลับมาหาตัวเอง (บรรทัดที่เพิ่ม) 🔽🔽🔽
+      socket.emit("private_message", {
+        from: users[socket.id],
+        message
+      });
+
       // ✅ บันทึกข้อความลง MongoDB
       try {
         await Message.create({
