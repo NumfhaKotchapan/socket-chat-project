@@ -44,10 +44,10 @@ function ChatWindow({ currentChat }) {
     if (currentChat) {
       let apiUrl = "";
       if (currentChat.type === 'private') {
-        apiUrl = `http://localhost:3001/api/messages/private/${username}/${currentChat.name}`;
-      } else {
-        apiUrl = `http://localhost:3001/api/messages/group/${currentChat.name}`;
-      }
+        apiUrl = `${import.meta.env.VITE_API_URL}/api/messages/private/${username}/${currentChat.name}`;
+      } else {
+        apiUrl = `${import.meta.env.VITE_API_URL}/api/messages/group/${currentChat.name}`;
+      }
 
       // 🌟 Feature 4: Fetching from DB
       fetch(apiUrl)

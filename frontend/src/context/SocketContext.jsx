@@ -5,7 +5,7 @@ import { io } from 'socket.io-client';
 // ----------------------------------------------------------------------
 
 // 1. เชื่อมต่อกับ Backend (อย่าลืมแก้ URL ถ้าจำเป็น)
-const socket = io("http://localhost:3001"); 
+const socket = io(import.meta.env.VITE_API_URL); 
 
 // 2. สร้าง Context
 const SocketContext = createContext(socket);
