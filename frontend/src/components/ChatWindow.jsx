@@ -134,8 +134,8 @@ function ChatWindow({ currentChat }) {
       }
     };
 
-    const handleGroupMessage = ({ from, message }) => {
-      if (currentChat && currentChat.type === 'group') {
+    const handleGroupMessage = ({ from, message,room }) => {
+      if (currentChat && currentChat.type === 'group' && room === currentChat.name) {
         setMessages((prev) => [...prev, { type: 'chat', sender: from, content: message }]);
       }
     };
