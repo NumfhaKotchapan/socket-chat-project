@@ -70,50 +70,63 @@ io.on("connection", (socket) => {
 
   // รับข้อความ private
   socket.on("private_message", async ({ to, message }) => {
-    const targetSocketId = Object.keys(users).find(
-      key => users[key] === to
-    );
-    if (targetSocketId) {
-      io.to(targetSocketId).emit("private_message", {
-        from: users[socket.id],
-        message
+    const fromUser = users[socket.id];
+    // Save first
+    try {
+      const saved = await Message.create({
+        sender: fromUser,
+        receiver: to,
+        content: message,
+        reactions: {}
       });
 
-      // 🔽🔽🔽 2. ส่งกลับมาหาตัวเอง (บรรทัดที่เพิ่ม) 🔽🔽🔽
-      socket.emit("private_message", {
-        from: users[socket.id],
-        message
-      });
-      // ✅ บันทึกข้อความลง MongoDB
-      try {
-        await Message.create({
-          sender: users[socket.id],
-          receiver: to,
-          content: message
-        });
-        console.log(`💾 Saved private message from ${users[socket.id]} to ${to}`);
-      } catch (err) {
-        console.error("❌ Error saving private message:", err);
+      // build payload with DB id and timestamp
+      const payload = {
+        _id: saved._id,
+        sender: saved.sender,
+        receiver: saved.receiver,
+        content: saved.content,
+        timestamp: saved.timestamp || saved.createdAt || Date.now()
+      };
+
+      const targetSocketId = Object.keys(users).find(key => users[key] === to);
+
+      // emit to recipient (if online)
+      if (targetSocketId) {
+        io.to(targetSocketId).emit("private_message", payload);
       }
+
+      // always emit back to sender
+      socket.emit("private_message", payload);
+
+      console.log(`💾 Saved private message from ${fromUser} to ${to}`);
+    } catch (err) {
+      console.error("❌ Error saving private message:", err);
     }
   });
 
   // รับข้อความในกลุ่ม
   socket.on("group_message", async ({ room, message }) => {
-    io.to(room).emit("group_message", {
-      from: users[socket.id],
-      message,
-      room: room // 👈 🔽 เพิ่มบรรทัดนี้ 🔽
-    });
-
-    // ✅ บันทึกข้อความลง MongoDB
+    const fromUser = users[socket.id];
     try {
-      await Message.create({
-        sender: users[socket.id],
+      const saved = await Message.create({
+        sender: fromUser,
         room,
-        content: message
+        content: message,
+        reactions: {}
       });
-      console.log(`💾 Saved group message in ${room} from ${users[socket.id]}`);
+
+      const payload = {
+        _id: saved._id,
+        sender: saved.sender,
+        room: saved.room,
+        content: saved.content,
+        timestamp: saved.timestamp || saved.createdAt || Date.now()
+      };
+
+      io.to(room).emit("group_message", payload);
+
+      console.log(`💾 Saved group message in ${room} from ${fromUser}`);
     } catch (err) {
       console.error("❌ Error saving group message:", err);
     }
@@ -123,21 +136,139 @@ io.on("connection", (socket) => {
   socket.on("create_group", (groupName) => {
     rooms[groupName] = [users[socket.id]];
     socket.join(groupName);
+    // ส่ง group_list ให้ทุกคน
     io.emit("group_list", rooms);
+    // ส่ง members ของกลุ่มนี้ไปยังผู้สร้าง
+    socket.emit("group_members_updated", { groupName, members: rooms[groupName] });
   });
 
   // เข้าร่วม group
   socket.on("join_group", (groupName) => {
+    const username = users[socket.id];
+
+    for (const room of socket.rooms) {
+    if (room !== socket.id) {
+      socket.leave(room);
+      console.log(`🚪 ${username} left room ${room}`);
+    }
+  }
     socket.join(groupName);
     if (!rooms[groupName]) rooms[groupName] = [];
-    // 🔽 เพิ่มการตรวจสอบนี้ 🔽
-    const username = users[socket.id];
+    
     if (username && !rooms[groupName].includes(username)) {
       rooms[groupName].push(username);
-      io.emit("group_list", rooms); // อัปเดต list ต่อเมื่อมีการเปลี่ยนแปลง
+      // ส่ง group_list ให้ทุกคน
+      io.emit("group_list", rooms);
+      // ส่ง members ไปยังทุกคนในกลุ่มนี้
+      io.to(groupName).emit("group_members_updated", { groupName, members: rooms[groupName] });
     }
-    // 🔼 สิ้นสุดส่วนที่เพิ่ม 🔼
+    // ส่ง members ของกลุ่มนี้ไปยังผู้เข้าร่วม (แม้ว่าเป็นสมาชิกเดิมแล้ว)
+    socket.emit("group_members_updated", { groupName, members: rooms[groupName] });
   });
+
+//
+// 📍 index.js (ฟังก์ชัน add_reaction เวอร์ชั่นสมบูรณ์ + Debug)
+//
+socket.on('add_reaction', async ({ messageId, emoji, username, chatType, chatName }) => {
+  
+  // ---------------------------------------------
+  // 🐞 DEBUG: เพิ่ม Log เพื่อตรวจสอบ
+  // ---------------------------------------------
+  console.log(`[Reaction] 🚀 User '${username}' reacted with '${emoji}' on message '${messageId}'`);
+  // ---------------------------------------------
+
+  try {
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      // ---------------------------------------------
+      // 🐞 DEBUG
+      console.error(`[Reaction] ❌ ERROR: Message NOT FOUND with ID: ${messageId}`);
+      // ---------------------------------------------
+      return;
+    }
+
+    console.log(`[Reaction] 📄 Found message. Current reactions (before):`, message.reactions);
+
+  // 1. ดึง Array ของ user ที่กด emoji นี้ (ถ้าไม่มี จะได้ Array ว่าง)
+  //    ชื่อเปลี่ยนเป็น reactedUsers เพื่อไม่ให้ไปทับตัวแปร global `users`
+  const reactedUsers = message.reactions.get(emoji) || [];
+
+    // 2. Toggle (เพิ่ม/ลบ)
+    const index = reactedUsers.indexOf(username);
+    if (index > -1) {
+      reactedUsers.splice(index, 1); // ลบออก
+      console.log(`[Reaction] ➖ Removing reaction.`);
+    } else {
+      reactedUsers.push(username); // เพิ่มเข้าไป
+      console.log(`[Reaction] ➕ Adding reaction.`);
+    }
+
+    // 3. บันทึก Map กลับเข้าไป
+    if (reactedUsers.length > 0) {
+      // เราใช้ .set(key, value)
+      message.reactions.set(emoji, reactedUsers);
+    } else {
+      // ลบ key (emoji) ทิ้ง ถ้าไม่มีคนกดแล้ว
+      // เราใช้ .delete(key)
+      message.reactions.delete(emoji);
+    }
+
+    console.log(`[Reaction] 📝 Reactions (after):`, message.reactions);
+
+    // ❗️ Mongoose Map สามารถตรวจจับการเปลี่ยนแปลง .set() และ .delete() ได้
+    //    เราอาจไม่จำเป็นต้องใช้ .markModified() แต่ใส่ไว้ก็ไม่เสียหาย
+    // message.markModified('reactions'); // เอาออกไปก่อนก็ได้
+
+    // 4. บันทึกลง Database
+    await message.save();
+    
+    // ---------------------------------------------
+    // 🐞 DEBUG
+    console.log(`[Reaction] ✅ SUCCESS: Message saved to DB.`);
+    // ---------------------------------------------
+
+    const reactionUpdate = {
+      messageId,
+      reactions: message.reactions, // ส่ง Map กลับไป (React จะเห็นเป็น Object)
+    };
+
+    // 5. Broadcast (โค้ดส่วนนี้เหมือนเดิม และถูกต้องแล้ว)
+    if (chatType === 'private') {
+  // -----------------------------------------------------------------
+      // ❗️❗️ DEBUG: เพิ่ม Log ตรงนี้ ❗️❗️
+      // -----------------------------------------------------------------
+  console.log(`[Reaction] DEBUG: Searching for... Sender: '${message.sender}', Receiver: '${message.receiver}'`);
+  console.log(`[Reaction] DEBUG: Reacted users array:`, reactedUsers);
+  console.log(`[Reaction] DEBUG: All connected users mapping:`, users);
+      // -----------------------------------------------------------------
+      const senderSocketId = Object.keys(users).find(key => users[key] === message.sender);
+      const receiverSocketId = Object.keys(users).find(key => users[key] === message.receiver);
+      
+      // ---------------------------------------------
+      // 🐞 DEBUG
+      console.log(`[Reaction] 📡 Broadcasting 'reaction_updated' to private sockets: ${senderSocketId}, ${receiverSocketId}`);
+      // ---------------------------------------------
+
+      if (senderSocketId) {
+        io.to(senderSocketId).emit('reaction_updated', reactionUpdate);
+      }
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('reaction_updated', reactionUpdate);
+      }
+
+    } else { // group
+
+      io.to(chatName).emit('reaction_updated', reactionUpdate);
+    }
+
+  } catch (err) {
+    // ---------------------------------------------
+    // 🐞 DEBUG
+    console.error('[Reaction] ❌❌❌ CATASTROPHIC ERROR:', err);
+    // ---------------------------------------------
+  }
+});
 
   // disconnect
   socket.on("disconnect", () => {
