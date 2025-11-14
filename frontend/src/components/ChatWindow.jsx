@@ -1,85 +1,92 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useSocket } from '../context/SocketContext';
-import { useAppContext } from '../App'; // 🛑 (1) นำเข้า useAppContext
-import ChatInput from './ChatInput';
+import React, { useState, useEffect, useRef } from "react";
+import { useSocket } from "../context/SocketContext";
+import { useAppContext } from "../App"; // 🛑 (1) นำเข้า useAppContext
+import ChatInput from "./ChatInput";
+import GroupMembersButton from "./GroupMembersButton";
 
 // --- Styles (ถูกปรับให้ใช้ CSS Variables อย่างเต็มที่) ---
 
-const GLOBAL_FONT = 'Poppins, sans-serif';
+const GLOBAL_FONT = "Poppins, sans-serif";
 
 const chatWindowHeaderStyle = {
-  padding: '15px 20px',
-  borderBottom: '1px solid var(--border-color)', // 🛑 (3)
-  background: 'var(--sidebar-bg)', // 🛑 (3)
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
+  padding: "15px 20px",
+  borderBottom: "1px solid var(--border-color)", // 🛑 (3)
+  background: "var(--sidebar-bg)", // 🛑 (3)
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
   fontFamily: GLOBAL_FONT,
-  color: 'var(--text-color)', // 🛑 (3)
+  color: "var(--text-color)", // 🛑 (3)
 };
 
 const messagesContainerStyle = {
   flex: 1,
-  overflowY: 'auto',
-  padding: '20px',
-  background: 'var(--chat-bg)', // 🛑 (3)
+  overflowY: "auto",
+  padding: "20px",
+  background: "var(--chat-bg)", // 🛑 (3)
 };
 
 const messagesListStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '15px',
+  display: "flex",
+  flexDirection: "column",
+  gap: "15px",
 };
 
 const messageStyle = {
-  marginBottom: '0px',
-  padding: '10px 15px',
-  borderRadius: '18px 18px 18px 0',
-  maxWidth: '65%',
-  background: 'var(--message-bg)', // 🛑 (3)
-  wordWrap: 'break-word',
-  alignSelf: 'flex-start',
-  color: 'var(--text-color)', // 🛑 (3)
+  marginBottom: "0px",
+  padding: "10px 15px",
+  borderRadius: "18px 18px 18px 0",
+  maxWidth: "65%",
+  background: "var(--message-bg)", // 🛑 (3)
+  wordWrap: "break-word",
+  alignSelf: "flex-start",
+  color: "var(--text-color)", // 🛑 (3)
   fontFamily: GLOBAL_FONT,
-  fontSize: '15px',
+  fontSize: "15px",
 };
 
 const messageMeStyle = {
   ...messageStyle,
-  background: 'var(--message-me-bg)', // 🛑 (3)
-  alignSelf: 'flex-end',
-  borderRadius: '18px 18px 0 18px',
-  color: 'var(--message-me-text-color, #FFFFFF)',
+  background: "var(--message-me-bg)", // 🛑 (3)
+  alignSelf: "flex-end",
+  borderRadius: "18px 18px 0 18px",
+  color: "var(--message-me-text-color, #FFFFFF)",
 };
 
 const messageSenderStyle = {
-  fontSize: '0.75em',
-  fontWeight: '600',
-  marginBottom: '4px',
-  color: 'var(--system-message-color)', // 🛑 (3)
+  fontSize: "0.75em",
+  fontWeight: "600",
+  marginBottom: "4px",
+  color: "var(--system-message-color)", // 🛑 (3)
 };
 
 const systemMessageStyle = {
-  alignSelf: 'center',
-  background: 'var(--system-message-bg, rgba(76, 110, 245, 0.1))',
-  color: 'var(--system-message-color, #4C6EF5)',
-  padding: '6px 15px',
-  borderRadius: '18px',
-  fontStyle: 'normal',
-  fontSize: '0.85em',
-  fontWeight: '500',
-  marginTop: '5px',
-  marginBottom: '10px',
+  alignSelf: "center",
+  background: "var(--system-message-bg, rgba(76, 110, 245, 0.1))",
+  color: "var(--system-message-color, #4C6EF5)",
+  padding: "6px 15px",
+  borderRadius: "18px",
+  fontStyle: "normal",
+  fontSize: "0.85em",
+  fontWeight: "500",
+  marginTop: "5px",
+  marginBottom: "10px",
 };
 
 // --- End Styles ---
 
 function ChatWindow({ currentChat }) {
   const socket = useSocket();
-  const { username, currentChat: contextChat, theme, toggleTheme } = useAppContext(); // 🛑 (1)
+  const {
+    username,
+    currentChat: contextChat,
+    theme,
+    toggleTheme,
+  } = useAppContext(); // 🛑 (1)
 
   const SERVER_URL =
-    import.meta.env.VITE_SERVER_URL || `http://${window.location.hostname}:3001`;
+    import.meta.env.VITE_SERVER_URL ||
+    `http://${window.location.hostname}:3001`;
 
   const [messages, setMessages] = useState([]);
   const messagesEndRef = useRef(null);
@@ -87,12 +94,12 @@ function ChatWindow({ currentChat }) {
   // 🔽 FIX 1: แยก "ข้อความต้อนรับ" ออกมา
   useEffect(() => {
     const handleServerMessage = (message) => {
-      setMessages((prev) => [...prev, { type: 'system', content: message }]);
+      setMessages((prev) => [...prev, { type: "system", content: message }]);
     };
 
-    socket.on('server_message', handleServerMessage);
+    socket.on("server_message", handleServerMessage);
     return () => {
-      socket.off('server_message', handleServerMessage);
+      socket.off("server_message", handleServerMessage);
     };
   }, [socket]);
 
@@ -101,9 +108,11 @@ function ChatWindow({ currentChat }) {
     setMessages([]);
 
     if (currentChat) {
-      let apiUrl = '';
+      let apiUrl = "";
 
-      if (currentChat.type === 'private') {
+      console.log("Current Chat", currentChat);
+
+      if (currentChat.type === "private") {
         apiUrl = `${SERVER_URL}/api/messages/private/${username}/${currentChat.name}`;
       } else {
         apiUrl = `${SERVER_URL}/api/messages/group/${currentChat.name}`;
@@ -114,11 +123,11 @@ function ChatWindow({ currentChat }) {
         .then((history) => {
           const formattedHistory = history.map((msg) => ({
             ...msg,
-            type: 'chat',
+            type: "chat",
           }));
           setMessages((prevMessages) => [...formattedHistory, ...prevMessages]);
         })
-        .catch((err) => console.error('Failed to fetch history:', err));
+        .catch((err) => console.error("Failed to fetch history:", err));
     }
   }, [currentChat, username]);
 
@@ -127,31 +136,41 @@ function ChatWindow({ currentChat }) {
     const handlePrivateMessage = ({ from, message }) => {
       if (
         currentChat &&
-        currentChat.type === 'private' &&
+        currentChat.type === "private" &&
         (from === currentChat.name || from === username)
       ) {
-        setMessages((prev) => [...prev, { type: 'chat', sender: from, content: message }]);
+        setMessages((prev) => [
+          ...prev,
+          { type: "chat", sender: from, content: message },
+        ]);
       }
     };
 
-    const handleGroupMessage = ({ from, message,room }) => {
-      if (currentChat && currentChat.type === 'group' && room === currentChat.name) {
-        setMessages((prev) => [...prev, { type: 'chat', sender: from, content: message }]);
+    const handleGroupMessage = ({ from, message, room }) => {
+      if (
+        currentChat &&
+        currentChat.type === "group" &&
+        room === currentChat.name
+      ) {
+        setMessages((prev) => [
+          ...prev,
+          { type: "chat", sender: from, content: message },
+        ]);
       }
     };
 
-    socket.on('private_message', handlePrivateMessage);
-    socket.on('group_message', handleGroupMessage);
+    socket.on("private_message", handlePrivateMessage);
+    socket.on("group_message", handleGroupMessage);
 
     return () => {
-      socket.off('private_message', handlePrivateMessage);
-      socket.off('group_message', handleGroupMessage);
+      socket.off("private_message", handlePrivateMessage);
+      socket.off("group_message", handleGroupMessage);
     };
   }, [socket, currentChat, username]);
 
   // Auto-scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   // --- ส่วน Render ---
@@ -160,9 +179,9 @@ function ChatWindow({ currentChat }) {
       <div
         style={{
           ...messagesContainerStyle,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           fontFamily: GLOBAL_FONT,
         }}
       >
@@ -174,25 +193,65 @@ function ChatWindow({ currentChat }) {
   return (
     <>
       <div style={chatWindowHeaderStyle}>
-        <h3>
-          # {currentChat.name}{' '}
-          ({currentChat.type === 'group' ? 'Group Message' : 'Direct Message'})
-        </h3>
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg animated-gradient flex items-center justify-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="lucide lucide-hash text-white"
+              >
+                <line x1="4" x2="20" y1="9" y2="9"></line>
+                <line x1="4" x2="20" y1="15" y2="15"></line>
+                <line x1="10" x2="8" y1="3" y2="21"></line>
+                <line x1="16" x2="14" y1="3" y2="21"></line>
+              </svg>
+            </div>
+            <h1 className="font-semibold text-lg">
+              {currentChat.name} (
+              {currentChat.type === "group"
+                ? "Group Message"
+                : "Direct Message"}
+              )
+            </h1>
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground ml-2">
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground ml-2">
+                {currentChat.type === "group" && currentChat.members && currentChat.members.length > 0 && (
+                  <GroupMembersButton members={currentChat.members} />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', fontSize: '14px' }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "15px",
+            fontSize: "14px",
+          }}
+        >
           <button
             onClick={toggleTheme} // 🛑 (2)
             style={{
-              padding: '8px 15px',
-              borderRadius: '20px',
-              border: '1px solid var(--border-color)',
-              background: 'var(--toggle-botton-bg)',
-              color: 'var(--accent-text)',
-              cursor: 'pointer',
+              padding: "8px 15px",
+              borderRadius: "20px",
+              border: "1px solid var(--border-color)",
+              background: "var(--toggle-botton-bg)",
+              color: "var(--accent-text)",
+              cursor: "pointer",
               fontFamily: GLOBAL_FONT,
             }}
           >
-            {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
+            {theme === "light" ? "🌙 Dark" : "☀️ Light"}
           </button>
         </div>
       </div>
@@ -200,8 +259,12 @@ function ChatWindow({ currentChat }) {
       <div style={messagesContainerStyle}>
         <div style={messagesListStyle}>
           {messages.map((msg, index) => {
-            if (msg.type === 'system') {
-              return <div key={index} style={systemMessageStyle}>{msg.content}</div>;
+            if (msg.type === "system") {
+              return (
+                <div key={index} style={systemMessageStyle}>
+                  {msg.content}
+                </div>
+              );
             }
 
             const isMe = msg.sender === username;
@@ -209,7 +272,7 @@ function ChatWindow({ currentChat }) {
               <div
                 key={index}
                 style={isMe ? messageMeStyle : messageStyle}
-                className={isMe ? 'message-me' : 'message-other'}
+                className={isMe ? "message-me" : "message-other"}
               >
                 {!isMe && <div style={messageSenderStyle}>{msg.sender}</div>}
                 {msg.content}

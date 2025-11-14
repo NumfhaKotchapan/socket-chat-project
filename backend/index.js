@@ -123,7 +123,10 @@ io.on("connection", (socket) => {
   socket.on("create_group", (groupName) => {
     rooms[groupName] = [users[socket.id]];
     socket.join(groupName);
+    // ส่ง group_list ให้ทุกคน
     io.emit("group_list", rooms);
+    // ส่ง members ของกลุ่มนี้ไปยังผู้สร้าง
+    socket.emit("group_members_updated", { groupName, members: rooms[groupName] });
   });
 
   // เข้าร่วม group
@@ -141,9 +144,13 @@ io.on("connection", (socket) => {
     
     if (username && !rooms[groupName].includes(username)) {
       rooms[groupName].push(username);
-      io.emit("group_list", rooms); // อัปเดต list ต่อเมื่อมีการเปลี่ยนแปลง
+      // ส่ง group_list ให้ทุกคน
+      io.emit("group_list", rooms);
+      // ส่ง members ไปยังทุกคนในกลุ่มนี้
+      io.to(groupName).emit("group_members_updated", { groupName, members: rooms[groupName] });
     }
-    // 🔼 สิ้นสุดส่วนที่เพิ่ม 🔼
+    // ส่ง members ของกลุ่มนี้ไปยังผู้เข้าร่วม (แม้ว่าเป็นสมาชิกเดิมแล้ว)
+    socket.emit("group_members_updated", { groupName, members: rooms[groupName] });
   });
 
   // disconnect
