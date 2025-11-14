@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useSocket } from '../context/SocketContext';
 import { useAppContext } from '../App';
+import Confetti from 'react-confetti';
+
+
 
 // --- Styles (ปรับปรุงใหม่ทั้งหมด) ---
 const inputFormStyle = {
@@ -57,6 +60,13 @@ function ChatInput({ currentChat }) {
   const socket = useSocket();
   const { setShowSnow } = useAppContext(); 
 
+const [showConfetti, setShowConfetti] = useState(false); 
+
+const handleEmojiClick = () => {
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 5000);
+  };
+
   const handleInputChange = (e) => {
     const text = e.target.value;
     setMessage(text);
@@ -93,10 +103,11 @@ function ChatInput({ currentChat }) {
   };
 
   return (
-    // 💅 แก้ไข JSX ให้ตรงตามรูปภาพ
+  <>
+      {showConfetti && <Confetti width={window.innerWidth} height={window.innerHeight} numberOfPieces={200} gravity={0.2} />} 
     <form onSubmit={handleSubmit} style={inputFormStyle}>
       {/* ไอคอน Emoji (สำหรับตกแต่ง) */}
-      <button type="button" style={iconButtonStyle}>
+      <button type="button" style={iconButtonStyle} onClick={handleEmojiClick}>
         <span>🙂</span>
       </button>
       {/* ไอคอน Paperclip (สำหรับตกแต่ง) */}
@@ -118,7 +129,9 @@ function ChatInput({ currentChat }) {
         <span style={{ transform: 'rotate(-60deg)'}}>➤</span> 
       </button>
     </form>
+  </>
   );
+
 }
 
 export default ChatInput;
