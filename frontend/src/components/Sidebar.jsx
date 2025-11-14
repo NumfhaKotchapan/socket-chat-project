@@ -3,6 +3,8 @@ import { useSocket } from '../context/SocketContext';
 import { useAppContext } from '../App';
 import ThemeToggle from './ThemeToggle';
 
+const GLOBAL_FONT = 'Poppins, sans-serif';
+
 // --- Styles ---
 const sidebarHeaderStyle = {
   padding: '10px',
@@ -12,6 +14,7 @@ const sidebarHeaderStyle = {
   alignItems: 'center'
 };
 const listStyle = { listStyle: 'none', padding: 0, margin: 0 };
+const listMeStyle = { padding: '10px', borderBottom: '1px solid var(--border-color)' };
 const listItemStyle = { padding: '10px', cursor: 'pointer', borderBottom: '1px solid var(--border-color)' };
 const listHeaderStyle = { padding: '10px', background: 'var(--chat-bg)', fontWeight: 'bold' };
 const buttonContainerStyle = { display: 'flex', gap: '5px', padding: '10px' }
@@ -62,7 +65,7 @@ function Sidebar({ onSelectChat }) {
   };
 
   return (
-    <>
+    <div style={{ fontFamily: GLOBAL_FONT }}>
       <div style={sidebarHeaderStyle}>
         Logged in as: <strong>{username}</strong>
         <ThemeToggle />
@@ -75,6 +78,12 @@ function Sidebar({ onSelectChat }) {
       {/* (R4) Private Messages List */}
       <div style={listHeaderStyle}>Private Messages</div>
       <ul style={listStyle}>
+          <li
+            key={username}
+            style={listMeStyle}
+          >
+            {username} (me)
+          </li>
         {users.filter(u => u !== username).map(user => (
           <li
             key={user}
@@ -99,7 +108,7 @@ function Sidebar({ onSelectChat }) {
           </li>
         ))}
       </ul>
-    </>
+    </div>
   );
 }
 

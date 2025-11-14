@@ -10,7 +10,7 @@ export default defineConfig({
     proxy: {
       "/api": {
         // backend dev server
-        target: "http://172.28.32.1:3001",
+        target: "http://172.26.0.1:3001",
         changeOrigin: true
       }
     }
