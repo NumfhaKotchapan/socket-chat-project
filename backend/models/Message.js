@@ -9,6 +9,11 @@ const messageSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  reactions: {
+    type: Map,
+    of: [String], // Array ของ usernames
+    default: {},
+  },
 });
 
 export default mongoose.model("Message", messageSchema);
