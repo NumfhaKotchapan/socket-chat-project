@@ -10,7 +10,7 @@ export default defineConfig({
     proxy: {
       "/api": {
         // backend dev server
-        target: "http://172.26.0.1:3001",
+        target: "https://socket-chat-project-backend.onrender.com",
         changeOrigin: true
       }
     }
