@@ -29,6 +29,7 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.2 0.01 264);
   --primary: oklch(0.5 0.2 264);
+  --primary-divide-ten: rgb(229, 235, 248);
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.96 0.005 264);
   --secondary-foreground: oklch(0.2 0.01 264);
@@ -65,7 +66,7 @@
   --accent-color: #60a5fa;
   --accent-text: #2c2c2c;
   --sidebar-bg: #333333;
-  --chat-bg: #3b3b3b;
+  --chat-bg: #080b12;
   --message-bg: #444444;
   --message-me-bg: #056162;
   --system-message-color: #aaa;
@@ -74,17 +75,19 @@
   --background: oklch(0.15 0.015 264);
   --foreground: oklch(0.95 0.005 264);
   --card: oklch(0.18 0.015 264);
+  --card-divide-fifty: #0b0e15;
   --card-foreground: oklch(0.95 0.005 264);
   --popover: oklch(0.18 0.015 264);
   --popover-foreground: oklch(0.95 0.005 264);
-  --primary: oklch(0.55 0.2 264);
+  --primary: #3266e4;
+  --primary-divide-ten: #0f172a;
   --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.25 0.015 264);
   --secondary-foreground: oklch(0.95 0.005 264);
   --muted: oklch(0.25 0.015 264);
   --muted-foreground: oklch(0.65 0.01 264);
   --accent: oklch(0.25 0.015 264);
-  --accent-foreground: oklch(0.95 0.005 264);
+  --accent-foreground: #edeef2;
   --destructive: oklch(0.396 0.141 25.723);
   --destructive-foreground: oklch(0.985 0 0);
   --border: oklch(0.25 0.015 264);

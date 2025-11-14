@@ -11,7 +11,7 @@ const GLOBAL_FONT = "Poppins, sans-serif";
 const chatWindowHeaderStyle = {
   padding: "15px 20px",
   borderBottom: "1px solid var(--border-color)", // 🛑 (3)
-  background: "var(--sidebar-bg)", // 🛑 (3)
+  background: "var(--card-divide-fifty)", // 🛑 (3)
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
@@ -221,8 +221,8 @@ function ChatWindow({ currentChat }) {
                 : "Direct Message"}
               )
             </h1>
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground ml-2">
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground ml-2">
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 {currentChat.type === "group" && currentChat.members && currentChat.members.length > 0 && (
                   <GroupMembersButton members={currentChat.members} />
                 )}

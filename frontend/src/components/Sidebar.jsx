@@ -36,6 +36,7 @@ function Sidebar({ onSelectChat }) {
   const { username } = useAppContext(); // ชื่อของเราเอง
   const [users, setUsers] = useState([]); // (R4)
   const [groups, setGroups] = useState({}); // (R9)
+  const [selectedChat, setSelectedChat] = useState(null);
 
   useEffect(() => {
     // ฟัง event จาก server
@@ -65,10 +66,10 @@ function Sidebar({ onSelectChat }) {
 
       // สั่งให้ ChatPage เปลี่ยนหน้าต่างแชทไปที่กลุ่มใหม่ทันที
       // ส่ง members array ว่างเพราะยังรอให้ backend ส่ง group_members_updated
-      onSelectChat({ 
-        type: "group", 
-        name: groupName, 
-        members: [] 
+      onSelectChat({
+        type: "group",
+        name: groupName,
+        members: [],
       });
     }
   };
@@ -77,15 +78,18 @@ function Sidebar({ onSelectChat }) {
   const handleJoinGroup = (groupName) => {
     socket.emit("join_group", groupName);
     // ส่ง members array ว่างเพราะยังรอให้ backend ส่ง group_members_updated
-    onSelectChat({ 
-      type: "group", 
-      name: groupName, 
-      members: groups[groupName] || [] 
+    onSelectChat({
+      type: "group",
+      name: groupName,
+      members: groups[groupName] || [],
     });
   };
 
   return (
-    <div style={{ fontFamily: GLOBAL_FONT }} className="bg-card backdrop-blur-sm border-r border-border flex flex-col relative z-10">
+    <div
+      style={{ fontFamily: GLOBAL_FONT }}
+      className="bg-card backdrop-blur-sm border-r border-border flex flex-col relative z-10"
+    >
       <div className="p-4 border-b border-border">
         {/* <div className="h-1 w-12 animated-gradient rounded-full mb-3"></div> */}
         <div className="mb-3"></div>
@@ -102,27 +106,50 @@ function Sidebar({ onSelectChat }) {
         </div> */}
 
       {/* (R4) Private Messages List */}
-      <div className="p-3">
+      <div className="p-3 border-b border-border">
         <div className="text-base font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2">
           Private Messages
         </div>
         <div className="space-y-0.5">
           <button
             key={username}
-            className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-base text-muted-foreground border-b border-border transition-colors duration-200"
+            className="w-full flex gap-2 px-2 py-3 rounded-2xl text-base transition-all duration-200"
           >
-            {username} (me)
+            <div className="flex gap-1">
+              <span>{username} </span>
+              <span className="flex text-xs items-center">(me)</span>
+            </div>
+
           </button>
           {users
             .filter((u) => u !== username)
             .map((user) => (
               <button
                 key={user}
-                onClick={() => onSelectChat({ type: "private", name: user })}
-                className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-base text-muted-foreground border-b border-border transition-colors duration-200
-               hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)]"
+                onClick={() => {
+                  setSelectedChat({ type: "private", name: user });
+                  onSelectChat({ type: "private", name: user });
+                }}
+                className={`w-full flex items-center gap-2 px-2 py-3 rounded-2xl text-base transition-all duration-200 ${
+                  selectedChat?.type === "private" && selectedChat?.name === user
+                    ? "bg-[var(--primary-divide-ten)] text-[var(--primary)] font-medium shadow-sm"
+                    : "text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)]"
+                }`}
               >
-                {user}
+                <div className="flex items-center justify-between w-full">
+                  <span>{user}</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="8"
+                    height="8"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    stroke="none"
+                    className="text-green-500"
+                  >
+                    <circle cx="12" cy="12" r="10"></circle>
+                  </svg>
+                </div>
               </button>
             ))}
         </div>
@@ -143,9 +170,9 @@ function Sidebar({ onSelectChat }) {
           <button
             data-slot="button"
             className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg:not([class*='size-'])]:size-4 shrink-0 [&amp;_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive rounded-full gap-1.5 has-[&gt;svg]:px-2.5 h-5 w-5 p-0 transition-colors
-         bg-transparent text-black
-         hover:bg-gray-200 
-         hover:text-black"
+         bg-transparent text-[var(--muted-foreground)]
+         hover:bg-[var(--primary-divide-ten)]
+         hover:text-[var(--primary)]"
             onClick={handleCreateGroup}
           >
             <svg
@@ -169,9 +196,15 @@ function Sidebar({ onSelectChat }) {
           {Object.keys(groups).map((groupName) => (
             <button
               key={groupName}
-              onClick={() => handleJoinGroup(groupName)}
-              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-base text-muted-foreground border-b border-border transition-colors duration-200
-               hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)]"
+              onClick={() => {
+                setSelectedChat({ type: "group", name: groupName });
+                handleJoinGroup(groupName);
+              }}
+              className={`w-full flex items-center gap-2 px-2 py-3 rounded-2xl text-base transition-all duration-200 ${
+                  selectedChat?.type === "group" && selectedChat?.name === groupName
+                    ? "bg-[var(--primary-divide-ten)] text-[var(--primary)] font-medium shadow-sm"
+                    : "text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)]"
+                }`}
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

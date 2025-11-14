@@ -12,13 +12,13 @@ const inputFormStyle = {
   alignItems: 'center', 
   padding: '15px 20px',
   borderTop: '1px solid var(--border-color)',
-  background: 'var(--sidebar-bg)',
+  background: 'var(--card-divide-fifty)',
   gap: '10px', // 💅 เพิ่มช่องว่างระหว่างไอคอนและ input
 };
 
 const inputStyle = {
   flex: 1, // 💅 ทำให้ input ยืดเต็มพื้นที่ที่เหลือ
-  border: 'none', // 💅 ลบขอบ
+  // border: 'none', // 💅 ลบขอบ
   padding: '12px 18px', // 💅 ปรับ padding 
   borderRadius: '24px', // 💅 ทำให้ขอบมน (Pill-shaped)
   background: 'var(--input-bg)', // 💅 ใช้สีพื้นหลังสำหรับ input

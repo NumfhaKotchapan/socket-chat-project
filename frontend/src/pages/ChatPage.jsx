@@ -14,7 +14,7 @@ const chatPageStyle = {
 const sidebarStyle = {
   width: "300px",
   borderRight: "1px solid var(--border-color)",
-  backgroundColor: "var(--sidebar-bg)",
+  backgroundColor: "var(--card-divide-fifty)",
   display: "flex",
   flexDirection: "column",
   overflowY: "auto",
