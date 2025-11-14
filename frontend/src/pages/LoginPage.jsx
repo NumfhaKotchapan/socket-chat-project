@@ -81,8 +81,9 @@ const styles = {
   },
 
   label: {
-    fontSize: '14px',
+    fontSize: '17px',
     fontWeight: '500',
+    fontFamily: GLOBAL_FONT,
   },
 
   input: {
@@ -95,6 +96,7 @@ const styles = {
     width: '100%',
     boxSizing: 'border-box',
     outline: 'none',
+    fontFamily: GLOBAL_FONT,
   },
 
   button: {
@@ -233,12 +235,12 @@ function LoginPage({ onLoginSuccess }) {
             maxLength={20}
           />
 
-          <div style={{ marginTop: '8px' }}>
+          {/* <div style={{ marginTop: '8px' }}>
             <label style={styles.label}>Choose Avatar Color</label>
             <div style={{ marginTop: '6px' }}>
               <ColorPicker selectedColor={avatarColor} onSelect={setAvatarColor} />
             </div>
-          </div>
+          </div> */}
 
           <button type="submit" style={{ ...styles.button, marginTop: '12px' }}>
             Join SocketChat
