@@ -89,7 +89,8 @@ io.on("connection", (socket) => {
         await Message.create({
           sender: users[socket.id],
           receiver: to,
-          content: message
+          content: message,
+          reactions: {} // เพิ่ม reactions ว่างเปล่าตอนสร้าง
         });
         console.log(`💾 Saved private message from ${users[socket.id]} to ${to}`);
       } catch (err) {
@@ -111,7 +112,8 @@ io.on("connection", (socket) => {
       await Message.create({
         sender: users[socket.id],
         room,
-        content: message
+        content: message,
+        reactions: {} // เพิ่ม reactions ว่างเปล่าตอนสร้าง
       });
       console.log(`💾 Saved group message in ${room} from ${users[socket.id]}`);
     } catch (err) {
@@ -152,6 +154,106 @@ io.on("connection", (socket) => {
     // ส่ง members ของกลุ่มนี้ไปยังผู้เข้าร่วม (แม้ว่าเป็นสมาชิกเดิมแล้ว)
     socket.emit("group_members_updated", { groupName, members: rooms[groupName] });
   });
+
+//
+// 📍 index.js (ฟังก์ชัน add_reaction เวอร์ชั่นสมบูรณ์ + Debug)
+//
+socket.on('add_reaction', async ({ messageId, emoji, username, chatType, chatName }) => {
+  
+  // ---------------------------------------------
+  // 🐞 DEBUG: เพิ่ม Log เพื่อตรวจสอบ
+  // ---------------------------------------------
+  console.log(`[Reaction] 🚀 User '${username}' reacted with '${emoji}' on message '${messageId}'`);
+  // ---------------------------------------------
+
+  try {
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      // ---------------------------------------------
+      // 🐞 DEBUG
+      console.error(`[Reaction] ❌ ERROR: Message NOT FOUND with ID: ${messageId}`);
+      // ---------------------------------------------
+      return;
+    }
+
+    console.log(`[Reaction] 📄 Found message. Current reactions (before):`, message.reactions);
+
+    // 1. ดึง Array ของ user ที่กด emoji นี้ (ถ้าไม่มี จะได้ Array ว่าง)
+    //    เราใช้ .get() แทน [emoji]
+    const users = message.reactions.get(emoji) || [];
+
+    // 2. Toggle (เพิ่ม/ลบ)
+    const index = users.indexOf(username);
+    if (index > -1) {
+      users.splice(index, 1); // ลบออก
+      console.log(`[Reaction] ➖ Removing reaction.`);
+    } else {
+      users.push(username); // เพิ่มเข้าไป
+      console.log(`[Reaction] ➕ Adding reaction.`);
+    }
+
+    // 3. บันทึก Map กลับเข้าไป
+    if (users.length > 0) {
+      // เราใช้ .set(key, value)
+      message.reactions.set(emoji, users);
+    } else {
+      // ลบ key (emoji) ทิ้ง ถ้าไม่มีคนกดแล้ว
+      // เราใช้ .delete(key)
+      message.reactions.delete(emoji);
+    }
+
+    console.log(`[Reaction] 📝 Reactions (after):`, message.reactions);
+
+    // ❗️ Mongoose Map สามารถตรวจจับการเปลี่ยนแปลง .set() และ .delete() ได้
+    //    เราอาจไม่จำเป็นต้องใช้ .markModified() แต่ใส่ไว้ก็ไม่เสียหาย
+    // message.markModified('reactions'); // เอาออกไปก่อนก็ได้
+
+    // 4. บันทึกลง Database
+    await message.save();
+    
+    // ---------------------------------------------
+    // 🐞 DEBUG
+    console.log(`[Reaction] ✅ SUCCESS: Message saved to DB.`);
+    // ---------------------------------------------
+
+    const reactionUpdate = {
+      messageId,
+      reactions: message.reactions, // ส่ง Map กลับไป (React จะเห็นเป็น Object)
+    };
+
+    // 5. Broadcast (โค้ดส่วนนี้เหมือนเดิม และถูกต้องแล้ว)
+    if (chatType === 'private') {
+      const senderSocketId = Object.keys(users).find(key => users[key] === message.sender);
+      const receiverSocketId = Object.keys(users).find(key => users[key] === message.receiver);
+      
+      // ---------------------------------------------
+      // 🐞 DEBUG
+      console.log(`[Reaction] 📡 Broadcasting 'reaction_updated' to private sockets: ${senderSocketId}, ${receiverSocketId}`);
+      // ---------------------------------------------
+
+      if (senderSocketId) {
+        io.to(senderSocketId).emit('reaction_updated', reactionUpdate);
+      }
+      if (receiverSocketId) {
+        io.to(receiverSocketId).emit('reaction_updated', reactionUpdate);
+      }
+
+    } else { // group
+      // ---------------------------------------------
+      // 🐞 DEBUG
+      console.log(`[Reaction] 📡 Broadcasting 'reaction_updated' to group: ${chatName}`);
+      // ---------------------------------------------
+      io.to(chatName).emit('reaction_updated', reactionUpdate);
+    }
+
+  } catch (err) {
+    // ---------------------------------------------
+    // 🐞 DEBUG
+    console.error('[Reaction] ❌❌❌ CATASTROPHIC ERROR:', err);
+    // ---------------------------------------------
+  }
+});
 
   // disconnect
   socket.on("disconnect", () => {
