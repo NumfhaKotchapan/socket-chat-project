@@ -84,19 +84,23 @@ const handleEmojiClick = () => {
     e.preventDefault();
     if (!message.trim() || !currentChat) return;
 
-    if (currentChat.type === 'private') {
-      socket.emit("private_message", {
-        to: currentChat.name,
-        message: message.trim()
-      });
-    }
+    if (currentChat.type === 'private') {
+      // try a few fields for recipient to be robust
+      const recipient = currentChat.name || currentChat.username || currentChat.to || currentChat.id;
+      if (!recipient) {
+        console.warn('ChatInput: private chat but recipient not found', currentChat);
+        return;
+      }
+      const payload = { to: recipient, message: message.trim() };
+      console.log('ChatInput: emit private_message', payload);
+      socket.emit("private_message", payload);
+    }
 
-    if (currentChat.type === 'group') {
-      socket.emit("group_message", {
-        room: currentChat.name,
-        message: message.trim()
-      });
-    }
+    if (currentChat.type === 'group') {
+      const payload = { room: currentChat.name, message: message.trim() };
+      console.log('ChatInput: emit group_message', payload);
+      socket.emit("group_message", payload);
+    }
 
     setMessage(""); 
     setShowSnow(false); 

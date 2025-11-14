@@ -123,6 +123,8 @@ function ChatWindow({ currentChat }) {
 
   const [messages, setMessages] = useState([]);
   const messagesEndRef = useRef(null);
+  // dedupe seen messages to avoid duplicates when server echoes / listeners register twice
+  const seenMsgKeysRef = useRef(new Set());
   const [showEmojiPicker, setShowEmojiPicker] = useState(null);
   const [hoveredMessage, setHoveredMessage] = useState(null);
   
@@ -191,70 +193,107 @@ function ChatWindow({ currentChat }) {
     };
   }, [socket]);
 
-  // 🌟 Feature 4: DB (ดึงประวัติแชท)
   useEffect(() => {
+  // 🔽 (1) ถ้าไม่มี chat ให้เคลียร์ทุกอย่างแล้วออกเลย
+  if (!currentChat) {
     setMessages([]);
+    return;
+  }
 
-    if (currentChat) {
-      let apiUrl = "";
+  // --- (2) ประกาศฟังก์ชัน Listener ไว้ก่อน (ยังไม่ register) ---
+  const handlePrivateMessage = ({ from, message, _id, sender, content }) => {
+    const id = _id || (content ? `${from}|${content}` : `${from}|${message}`);
+    if (seenMsgKeysRef.current.has(id)) return; // already seen
+    const newMessage = { _id: _id, sender: from || sender, content: message || content, type: "chat" };
 
-      console.log("Current Chat", currentChat);
-
-      if (currentChat.type === "private") {
-        apiUrl = `${SERVER_URL}/api/messages/private/${username}/${currentChat.name}`;
-      } else {
-        apiUrl = `${SERVER_URL}/api/messages/group/${currentChat.name}`;
-      }
-
-      fetch(apiUrl)
-        .then((res) => res.json())
-        .then((history) => {
-          const formattedHistory = history.map((msg) => ({
-            ...msg,
-            type: "chat",
-          }));
-          setMessages((prevMessages) => [...formattedHistory, ...prevMessages]);
-        })
-        .catch((err) => console.error("Failed to fetch history:", err));
+    if (
+      currentChat &&
+      currentChat.type === "private" &&
+      (newMessage.sender === currentChat.name || newMessage.sender === username)
+    ) {
+      seenMsgKeysRef.current.add(id);
+      setMessages((prev) => [...prev, newMessage]);
     }
-  }, [currentChat, username]);
+  };
 
-  // Effect สำหรับรับ "ข้อความสด"
-  useEffect(() => {
-    const handlePrivateMessage = ({ from, message }) => {
-      if (
-        currentChat &&
-        currentChat.type === "private" &&
-        (from === currentChat.name || from === username)
-      ) {
-        setMessages((prev) => [
-          ...prev,
-          { type: "chat", sender: from, content: message },
-        ]);
+  const handleGroupMessage = ({ from, message, room, _id, sender, content }) => {
+    const id = _id || `${room}|${from}|${content || message}`;
+    if (seenMsgKeysRef.current.has(id)) return;
+    const newMessage = { _id: _id, sender: from || sender, content: message || content, room, type: "chat" };
+
+    if (
+      currentChat &&
+      currentChat.type === "group" &&
+      newMessage.room === currentChat.name
+    ) {
+      seenMsgKeysRef.current.add(id);
+      setMessages((prev) => [...prev, newMessage]);
+    }
+  };
+
+  // --- (3) สร้างฟังก์ชันสำหรับโหลดประวัติแชท ---
+  const fetchHistoryAndListen = async () => {
+    setMessages([]); // เคลียร์ข้อความเก่า
+    let apiUrl = "";
+
+    if (currentChat.type === "private") {
+      apiUrl = `${SERVER_URL}/api/messages/private/${username}/${currentChat.name}`;
+    } else {
+      apiUrl = `${SERVER_URL}/api/messages/group/${currentChat.name}`;
+    }
+
+    try {
+      // (3.1) โหลดประวัติแชท *ให้เสร็จก่อน*
+      const res = await fetch(apiUrl);
+      const history = await res.json();
+      const formattedHistory = history.map((msg) => ({
+        ...msg,
+        type: "chat",
+      }));
+      
+      // (3.2) *แทนที่* state ด้วยประวัติที่ดึงมา (ห้าม merge)
+      setMessages(formattedHistory);
+
+      // เติม seen set จาก history (ใช้ _id หรือ composite key)
+      const newSeen = new Set();
+      for (const m of formattedHistory) {
+        const k = m._id || (m.room ? `${m.room}|${m.sender}|${m.content}` : `${m.sender}|${m.content}`);
+        newSeen.add(k);
       }
-    };
+      seenMsgKeysRef.current = newSeen;
 
-    const handleGroupMessage = ({ from, message, room }) => {
-      if (
-        currentChat &&
-        currentChat.type === "group" &&
-        room === currentChat.name
-      ) {
-        setMessages((prev) => [
-          ...prev,
-          { type: "chat", sender: from, content: message },
-        ]);
-      }
-    };
+    } catch (err) {
+      console.error("Failed to fetch history:", err);
+      // แม้จะ fetch ไม่ได้ ก็ยังต้องดักฟังข้อความใหม่อยู่ดี
+    }
 
+    // (3.3) *หลังจาก* โหลด history เสร็จ ค่อยเริ่มดักฟัง
+    // ป้องกันกรณี race: ถ้า effect ถูก cleanup ก่อน fetch เสร็จ อย่า register listener
+    if (!active) {
+      console.log(`⚠️ Aborting listener registration for ${currentChat.name} (effect inactive)`);
+      return;
+    }
+
+    console.log(`🎧 Start listening for ${currentChat.name}`);
     socket.on("private_message", handlePrivateMessage);
     socket.on("group_message", handleGroupMessage);
+  };
 
-    return () => {
-      socket.off("private_message", handlePrivateMessage);
-      socket.off("group_message", handleGroupMessage);
-    };
-  }, [socket, currentChat, username]);
+  // --- (4) เรียกฟังก์ชันหลัก ---
+  let active = true;
+  fetchHistoryAndListen();
+
+  // --- (5) Cleanup ---
+  return () => {
+    // เมื่อ component unmount หรือ currentChat เปลี่ยน
+    // ให้หยุดดักฟังอันเก่าทันที และหยุดการลงทะเบียนถ้ายังรอ fetch
+    active = false;
+    console.log(`🛑 Stop listening for ${currentChat.name}`);
+    socket.off("private_message", handlePrivateMessage);
+    socket.off("group_message", handleGroupMessage);
+  };
+
+}, [ currentChat, username, SERVER_URL]);
 
   // Auto-scroll
   useEffect(() => {
